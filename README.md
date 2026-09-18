@@ -17,12 +17,14 @@ A professional, production-grade web application to auto-grade handwritten Devan
 The easiest way to run the application is using Docker. This will automatically set up the frontend, backend, and the database.
 
 ### Prerequisites
+
 - [Docker](https://docs.docker.com/get-docker/) installed on your system.
 - [Docker Compose](https://docs.docker.com/compose/install/) installed.
 
 ### Step-by-Step Setup
 
 1. **Clone the repository**:
+
    ```bash
    git clone <repo-url>
    cd vernacular-grader
@@ -30,17 +32,21 @@ The easiest way to run the application is using Docker. This will automatically 
 
 2. **Set up Environment Variables**:
    Copy the example environment file to create your own configuration.
+
    ```bash
    cp .env.example .env
    ```
-   *(Optional)* Open `.env` in a text editor and update the `JWT_SECRET_KEY` or any other settings.
+
+   _(Optional)_ Open `.env` in a text editor and update the `JWT_SECRET_KEY` or any other settings.
 
 3. **Start the Application**:
    Use Docker Compose to build and start all services (Backend, Frontend, and PostgreSQL).
+
    ```bash
    docker-compose up --build
    ```
-   *Note: The first time you run this, it may take a few minutes to download and build all dependencies.*
+
+   _Note: The first time you run this, it may take a few minutes to download and build all dependencies._
 
 4. **Access the Application**:
    Once the containers are running, you can access the following services:
@@ -59,12 +65,12 @@ Once you have successfully built and run the app for the first time, you don't n
 
 To start grading answers, follow this workflow:
 
-1. **Create an Evaluator Account**: 
+1. **Create an Evaluator Account**:
    Since the app doesn't have an open registration page on the UI (for security), you must register via the API docs.
    - Go to [http://localhost:8000/docs#/auth/register_api_v1_auth_register_post](http://localhost:8000/docs#/auth/register_api_v1_auth_register_post)
    - Click **Try it out**, enter a username, email, and password, and click **Execute**.
 
-2. **Log In**: 
+2. **Log In**:
    Open the [Evaluator Dashboard](http://localhost:3000) and log in using the credentials you just created.
 
 3. **Manage Students**:
@@ -91,6 +97,7 @@ The OCR module uses **Tesseract OCR** with the Hindi (`hin`) trained data for De
 ### Swapping OCR Engines
 
 The engine uses an abstract `OCREngine` base class. To add a transformer-based OCR model (e.g. TrOCR, PaddleOCR):
+
 1. Create a new class inheriting from `OCREngine` in `app/ocr/engine.py`.
 2. Implement the `extract_text()` method.
 3. Update `get_ocr_engine()` to return your new engine.
@@ -112,6 +119,7 @@ To swap models, set the `SCORING_MODEL_NAME` environment variable (any sentence-
 ### Similarity-to-Marks Threshold Curve
 
 Raw cosine similarity is mapped to marks using a piecewise-linear function:
+
 - Below `SCORING_LOW_THRESHOLD` (default 0.3) → 0 marks
 - Above `SCORING_HIGH_THRESHOLD` (default 0.8) → full marks
 - Between → linear interpolation
@@ -125,8 +133,9 @@ If rubric keywords are provided, each keyword is **semantically matched** (not s
 ## Roadmap
 
 This project is being built in phases:
+
 - [x] Phase 1: Foundational Scaffolding (API, DB, Frontend shell, Docker)
 - [x] Phase 2: OCR Module Integration
 - [x] Phase 3: Semantic Scoring Engine
 - [x] Phase 4: Evaluator Dashboard
-- [ ] Phase 5: Production Deployment
+- [x] Phase 5: Production Deployment
