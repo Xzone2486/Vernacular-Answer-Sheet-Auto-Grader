@@ -67,11 +67,17 @@ To start grading answers, follow this workflow:
 2. **Log In**: 
    Open the [Evaluator Dashboard](http://localhost:3000) and log in using the credentials you just created.
 
-3. **Grade an Exam**:
-   - **Create Exam**: Click "Create New Exam" on the dashboard.
-   - **Upload Batch**: Open the exam, click "Batch Upload", and upload student answer sheets (`.jpg` or `.pdf`).
-   - **Start Grading**: Click "Start Grading Session". The app will use OCR to read the handwriting and AI to score it. You can review the side-by-side results and manually override the AI score if needed.
-   - **Export Results**: Go to the Reports tab to download the final grades as a CSV file.
+3. **Manage Students**:
+   - Go to the **Students** tab on the sidebar to add, edit, or delete students. Ensure students exist with valid Roll Numbers before uploading their answer sheets.
+
+4. **Grade an Exam**:
+   - **Create Exam**: Go to the Exams tab and click "Create New Exam".
+   - **Upload Batch**: Open the exam, click the "Batch Upload" tab, and upload student answer sheets (`.jpg` or `.pdf`). The system uses the file name to identify the student roll number (e.g., `101.jpg` belongs to student `101`).
+   - **Process Batch**: Click "Process Batch". The app triggers background jobs to run OCR to extract Devanagari handwriting and uses the semantic engine to score it automatically.
+   - **Review**: Go to the "Review & Results" tab to review side-by-side results and manually override the AI score if needed.
+
+5. **Generate Reports**:
+   - Go to the **Reports** tab to view the final results of all processed answer sheets. Click "Export to CSV" to download the final grades.
 
 ## OCR Engine
 
@@ -122,5 +128,5 @@ This project is being built in phases:
 - [x] Phase 1: Foundational Scaffolding (API, DB, Frontend shell, Docker)
 - [x] Phase 2: OCR Module Integration
 - [x] Phase 3: Semantic Scoring Engine
-- [ ] Phase 4: Evaluator Dashboard
+- [x] Phase 4: Evaluator Dashboard
 - [ ] Phase 5: Production Deployment
