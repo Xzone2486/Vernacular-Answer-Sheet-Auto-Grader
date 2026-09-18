@@ -37,6 +37,17 @@ app.mount("/uploads", StaticFiles(directory=str(upload_dir)), name="uploads")
 async def health_check():
     return {"status": "ok", "environment": settings.ENV}
 
+from app.core.jobs import JobTracker
+from app.schemas.domain import JobStatusResponse
+
+@app.get("/api/v1/jobs/{job_id}", response_model=JobStatusResponse, tags=["jobs"])
+async def get_job_status(job_id: str):
+    job = JobTracker().get_job(job_id)
+    if not job:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
+
 # Routers
 app.include_router(exams.router, prefix="/api/v1/exams", tags=["exams"])
 app.include_router(questions.router, prefix="/api/v1/questions", tags=["questions"])

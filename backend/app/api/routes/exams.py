@@ -20,3 +20,21 @@ async def create_exam(exam: ExamCreate, db: AsyncSession = Depends(get_db)):
 async def list_exams(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Exam))
     return result.scalars().all()
+
+@router.get("/{exam_id}", response_model=ExamResponse)
+async def get_exam(exam_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Exam).where(Exam.id == exam_id))
+    exam = result.scalars().first()
+    if not exam:
+        raise HTTPException(status_code=404, detail="Exam not found")
+    return exam
+
+@router.delete("/{exam_id}")
+async def delete_exam(exam_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Exam).where(Exam.id == exam_id))
+    exam = result.scalars().first()
+    if not exam:
+        raise HTTPException(status_code=404, detail="Exam not found")
+    await db.delete(exam)
+    await db.commit()
+    return {"status": "success", "message": "Exam deleted"}

@@ -194,3 +194,133 @@ async def get_answer_sheet(
     if not sheet:
         raise HTTPException(status_code=404, detail="Answer sheet not found.")
     return sheet
+
+from typing import Optional
+from app.schemas.domain import PaginatedResponse
+
+@router.get("/", response_model=PaginatedResponse[AnswerSheetResponse])
+async def list_answer_sheets(
+    exam_id: Optional[int] = None,
+    limit: int = 50,
+    offset: int = 0,
+    db: AsyncSession = Depends(get_db),
+):
+    """List answer sheets, optionally filtered by exam_id."""
+    from sqlalchemy import func
+    query = select(AnswerSheet).options(selectinload(AnswerSheet.student_answers))
+    total_query = select(func.count(AnswerSheet.id))
+    
+    if exam_id:
+        query = query.where(AnswerSheet.exam_id == exam_id)
+        total_query = total_query.where(AnswerSheet.exam_id == exam_id)
+        
+    total = (await db.execute(total_query)).scalar() or 0
+    query = query.order_by(AnswerSheet.id.desc()).limit(limit).offset(offset)
+    result = await db.execute(query)
+    return PaginatedResponse(items=result.scalars().all(), total=total, limit=limit, offset=offset)
+
+from pydantic import BaseModel
+from app.schemas.domain import BatchJobResponse
+from app.core.jobs import JobTracker
+from fastapi import BackgroundTasks
+import asyncio
+
+class BatchJobRequest(BaseModel):
+    exam_id: int
+
+async def process_batch_ocr(job_id: str, exam_id: int):
+    tracker = JobTracker()
+    try:
+        from app.db.session import AsyncSessionLocal
+        from sqlalchemy import select
+        from app.models.domain import AnswerSheet, StudentAnswer
+        from sqlalchemy.orm import selectinload
+        from app.ocr.engine import get_ocr_engine
+        from pathlib import Path
+        from app.core.config import settings
+        
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(
+                select(AnswerSheet).options(selectinload(AnswerSheet.student_answers)).where(AnswerSheet.exam_id == exam_id)
+            )
+            sheets = result.scalars().all()
+            sheets_to_process = [s for s in sheets if not s.student_answers]
+            
+            tracker._jobs[job_id].total = len(sheets_to_process)
+            if not sheets_to_process:
+                tracker.complete_job(job_id, result="No sheets pending OCR")
+                return
+            
+            engine = get_ocr_engine()
+            for i, sheet in enumerate(sheets_to_process):
+                image_full_path = str(Path(settings.UPLOAD_DIR) / sheet.image_path)
+                try:
+                    ocr_result = engine.extract_text(image_full_path)
+                    for region in ocr_result.regions:
+                        qid = region.question_id if region.question_id else 1
+                        sa = StudentAnswer(answer_sheet_id=sheet.id, question_id=qid, ocr_text=region.text, ocr_confidence=region.confidence)
+                        session.add(sa)
+                except Exception as e:
+                    logger.error(f"OCR failed for sheet {sheet.id}: {e}")
+                
+                await session.commit()
+                tracker.update_progress(job_id, i + 1)
+            tracker.complete_job(job_id)
+    except Exception as e:
+        tracker.fail_job(job_id, str(e))
+
+async def process_batch_score(job_id: str, exam_id: int):
+    tracker = JobTracker()
+    try:
+        from app.db.session import AsyncSessionLocal
+        from sqlalchemy import select
+        from app.models.domain import StudentAnswer, Question, Score
+        from sqlalchemy.orm import selectinload
+        from app.scoring.engine import get_scoring_engine
+        
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(
+                select(StudentAnswer)
+                .join(StudentAnswer.answer_sheet)
+                .where(StudentAnswer.answer_sheet.has(exam_id=exam_id))
+                .options(selectinload(StudentAnswer.question).selectinload(Question.reference_answer), selectinload(StudentAnswer.score))
+            )
+            answers = result.scalars().all()
+            answers_to_process = [a for a in answers if not a.score and a.ocr_text]
+            
+            tracker._jobs[job_id].total = len(answers_to_process)
+            if not answers_to_process:
+                tracker.complete_job(job_id, result="No answers pending score")
+                return
+                
+            engine = get_scoring_engine()
+            for i, sa in enumerate(answers_to_process):
+                q = sa.question
+                ref = q.reference_answer if q else None
+                if ref and sa.ocr_text:
+                    try:
+                        res = engine.score_answer(student_text=sa.ocr_text, reference_text=ref.text, max_marks=q.max_marks, rubric_keywords=ref.rubric_keywords)
+                        score_row = Score(student_answer_id=sa.id, auto_score=res.awarded_marks, similarity_score=res.similarity_score, explanation=res.explanation)
+                        session.add(score_row)
+                        await session.commit()
+                    except Exception as e:
+                        logger.error(f"Scoring failed for student answer {sa.id}: {e}")
+                
+                tracker.update_progress(job_id, i + 1)
+            tracker.complete_job(job_id)
+    except Exception as e:
+        tracker.fail_job(job_id, str(e))
+
+@router.post("/batch/ocr", response_model=BatchJobResponse)
+async def batch_ocr(request: BatchJobRequest, bg_tasks: BackgroundTasks):
+    tracker = JobTracker()
+    job_id = tracker.create_job(description=f"Batch OCR for Exam {request.exam_id}")
+    bg_tasks.add_task(process_batch_ocr, job_id, request.exam_id)
+    return BatchJobResponse(job_id=job_id)
+
+@router.post("/batch/score", response_model=BatchJobResponse)
+async def batch_score(request: BatchJobRequest, bg_tasks: BackgroundTasks):
+    tracker = JobTracker()
+    job_id = tracker.create_job(description=f"Batch Scoring for Exam {request.exam_id}")
+    bg_tasks.add_task(process_batch_score, job_id, request.exam_id)
+    return BatchJobResponse(job_id=job_id)

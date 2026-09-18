@@ -47,6 +47,14 @@ The easiest way to run the application is using Docker. This will automatically 
    - **Frontend (Evaluator Dashboard)**: [http://localhost:3000](http://localhost:3000)
    - **Backend API Docs (Swagger UI)**: [http://localhost:8000/docs](http://localhost:8000/docs)
 
+### 🛑 Managing the Application
+
+Once you have successfully built and run the app for the first time, you don't need to rebuild it every time.
+
+- **Start normally**: `docker-compose up` (starts the app and shows logs in your terminal)
+- **Start in background (Detached mode)**: `docker-compose up -d` (starts the app quietly in the background)
+- **Stop the app**: Press `Ctrl+C` in the terminal where it's running, or if it's running in the background, run `docker-compose down`.
+
 ### 🧑‍🏫 How to Use the App
 
 To start grading answers, follow this workflow:

@@ -7,6 +7,10 @@ import { ExamsList } from './pages/ExamsList';
 import { ExamDetail } from './pages/ExamDetail';
 import { GradingReview } from './pages/GradingReview';
 
+import { StudentsList } from './pages/StudentsList';
+import { GlobalReports } from './pages/GlobalReports';
+import { ExamReport } from './pages/ExamReport';
+
 function App() {
   return (
     <AuthProvider>
@@ -20,8 +24,9 @@ function App() {
               <Route path="/" element={<ExamsList />} />
               <Route path="/exams/:id" element={<ExamDetail />} />
               <Route path="/exams/:id/review" element={<GradingReview />} />
-              <Route path="/students" element={<div className="p-4">Students Management (Coming Soon)</div>} />
-              <Route path="/reports" element={<div className="p-4">Global Reports (Coming Soon)</div>} />
+              <Route path="/exams/:id/report" element={<ExamReport />} />
+              <Route path="/students" element={<StudentsList />} />
+              <Route path="/reports" element={<GlobalReports />} />
             </Route>
           </Routes>
         </BrowserRouter>
